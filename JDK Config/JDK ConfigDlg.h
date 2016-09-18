@@ -37,4 +37,5 @@ public:
 	afx_msg void OnBnClickedBtnbroswer();
 	afx_msg void OnBnClickedBtnexit();
 	afx_msg void OnClickedStaticChoosedir();
+	CString getPath();
 };

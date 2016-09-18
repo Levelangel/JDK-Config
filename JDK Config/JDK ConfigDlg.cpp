@@ -20,7 +20,7 @@
 CJDKConfigDlg::CJDKConfigDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CJDKConfigDlg::IDD, pParent)
 {
-	m_hIcon = AfxGetApp()->LoadIcon(IDI_ICON2);
+	m_hIcon = AfxGetApp()->LoadIcon(IDI_ICON1);
 }
 
 void CJDKConfigDlg::DoDataExchange(CDataExchange* pDX)
@@ -50,7 +50,6 @@ BOOL CJDKConfigDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
 
 	// TODO:  在此添加额外的初始化代码
-	this->SetWindowText(TEXT("JDK环境变量自动配置——吾爱专版"));
 	GetJavaVersion();
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -178,12 +177,21 @@ void CJDKConfigDlg::OnBnClickedBtnbroswer()
 	long ret = RegOpenKeyEx(root, SubKey, 0, REG_TYPE, &hKey);
 	if (ERROR_SUCCESS == ret)
 	{
+		///////////////////////get path from environment//////////////////////////
+		//has %...%
 		DWORD dwType;
 		CString path;
 		unsigned char tmppath[10000];
 		DWORD dwSize = sizeof(tmppath);
 		RegQueryValueEx(hKey, TEXT("Path"), NULL, &dwType, (LPBYTE)&tmppath, &dwSize);
 		path = (LPCTSTR)tmppath;
+		//////////////////////////////////////////////////////////////////////////
+
+		//////////////////////get path from cmd.exe///////////////////////////////
+		//has not %...%
+		//path = getPath();
+		//////////////////////////////////////////////////////////////////////////
+
 		path += TEXT(";");
 		CString tmpPath = TEXT("");
 		while (path.Find(TEXT(";"), 0) != -1)
@@ -265,4 +273,54 @@ void CJDKConfigDlg::OnClickedStaticChoosedir()
 			}
 		}
 	}
+}
+
+CString CJDKConfigDlg::getPath()
+{
+	CString cmdline = TEXT("cmd.exe /k echo %path%");
+	TCHAR cmdl[] = TEXT("cmd.exe /c echo %path%");
+	SECURITY_ATTRIBUTES sa;
+	HANDLE hRead, hWrite;
+	sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+	sa.lpSecurityDescriptor = NULL;
+	sa.bInheritHandle = TRUE;
+
+	if (CreatePipe(&hRead, &hWrite, &sa, 0))
+	{
+		STARTUPINFO startuoInfo;
+		PROCESS_INFORMATION processInfo;
+		ZeroMemory((void*)&startuoInfo, sizeof(STARTUPINFO));
+		startuoInfo.cb = sizeof(STARTUPINFO);
+		GetStartupInfo(&startuoInfo);
+		startuoInfo.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
+		startuoInfo.wShowWindow = SW_HIDE;
+		//GetStartupInfo(&startuoInfo);
+		startuoInfo.hStdError = hWrite;
+		startuoInfo.hStdOutput = hWrite;
+		if (!CreateProcess(NULL, cmdl, NULL, NULL, TRUE, NULL, NULL, NULL, &startuoInfo, &processInfo))
+		{
+			CloseHandle(hWrite);
+			CloseHandle(hRead);
+			CString ttmp = TEXT("");
+			ttmp.Format(TEXT("创建进程失败！ (%d)"), GetLastError());
+			MessageBox(ttmp);
+			return TEXT("Error");
+		}
+
+		CloseHandle(hWrite);
+		char buffer[4096] = { 0 };
+		CString output;
+		DWORD byteRead;
+		while (true)
+		{
+			if (ReadFile(hRead, buffer, 4095, &byteRead, NULL) == NULL)
+			{
+				break;
+			}
+			output += buffer;
+		}
+		CloseHandle(hRead);
+		return output;
+	}
+	return TEXT("Error");
 }
