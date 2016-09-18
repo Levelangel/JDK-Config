@@ -195,10 +195,6 @@ void CJDKConfigDlg::OnBnClickedBtnbroswer()
 			}
 			CString tmp = TEXT("");
 			tmp = path.Left(path.Find(TEXT(";"), 0));
-			if (_taccess_s(tmp, 0) == ENOENT)
-			{
-				continue;
-			}
 			tmpPath += (tmp + TEXT(";"));
 			path = path.Right(path.GetLength() - tmp.GetLength() -1);
 		}
